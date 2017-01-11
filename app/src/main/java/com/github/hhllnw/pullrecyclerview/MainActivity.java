@@ -57,7 +57,6 @@ public class MainActivity extends AppCompatActivity implements PullRecycler.OnRe
             }
         }
 
-
     }
 
     private void getData() {
