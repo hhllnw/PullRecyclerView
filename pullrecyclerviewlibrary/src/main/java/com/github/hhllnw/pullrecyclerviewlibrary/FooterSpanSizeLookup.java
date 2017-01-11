@@ -16,7 +16,7 @@ public class FooterSpanSizeLookup extends GridLayoutManager.SpanSizeLookup {
 
     @Override
     public int getSpanSize(int position) {
-        if (adapter.isShowFooter(position) || adapter.isSectionHeader(position)) {
+        if (adapter.isShowLoadMoreView(position) || adapter.isSectionHeader(position)) {
             return spanCount;
         }
         return 1;

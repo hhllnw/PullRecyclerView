@@ -23,15 +23,21 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
     public static final int ACTION_MORE_ACTION = 2;//上滑加载更多
     public static final int LOAD_MORE_CONTIUE = 3;//加载数据，还有数据可以加载
     public static final int LOAD_MORE_END = 4;//加载完所有数据，没有等多数据了
-    private boolean isCanLoadMore = false;//是否可以加载 /默认不可以加载更多
+    private boolean isCanLoadMore;//是否可以加载 /默认不可以加载更多
     private boolean isCanRefresh = true;//是否可以刷新  /默认可以刷新
+    private boolean isShowFooterView;
     private OnRecyclerRefreshListener listener;
     private ILayoutManager manager;
     private BaselistAdapter adapter;
+
     /**
      * 加载更多时，默认当倒数五个数出现时加载更多
      */
     private int reachBottomCount = 1;
+
+    public void addItemDecoration(RecyclerView.ItemDecoration divider) {
+        mRecyclerView.addItemDecoration(divider);
+    }
 
 
     /**
@@ -41,8 +47,8 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
         void onPullRefresh(int action);
     }
 
-    public interface OnClickLastViewListener {
-        void onClickLastView();
+    public interface OnClickFooterViewListener {
+        void onClickFooterView();
     }
 
     public PullRecycler(Context context) {
@@ -68,8 +74,7 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
         LayoutInflater.from(getContext()).inflate(R.layout.widget_pull_recycler, this, true);
         mSwipeRefreshLayout = (SwipeRefreshLayout) findViewById(R.id.mSwipeRefreshLayout);
         mSwipeRefreshLayout.setOnRefreshListener(this);
-        mSwipeRefreshLayout.setColorSchemeResources(android.R.color.holo_blue_light, android.R.color.holo_red_light,
-                android.R.color.holo_orange_light, android.R.color.holo_green_light);
+
         mRecyclerView = (RecyclerView) findViewById(R.id.mRecyclerView);
         mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
@@ -101,14 +106,31 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
         });
     }
 
-    public void scrollToPosition(int position) {
-        mRecyclerView.scrollToPosition(position);
-
+    /**
+     * 设置下拉刷新时缓冲UI颜色
+     *
+     * @param array
+     */
+    public void setPullRefreshUI(int[] array) {
+        mSwipeRefreshLayout.setColorSchemeResources(array);
     }
 
+    /**
+     * @param position
+     */
+    public void scrollToPosition(int position) {
+        mRecyclerView.scrollToPosition(position);
+    }
+
+    /**
+     * 滑动到某个item位置
+     *
+     * @param position
+     */
     public void smoothToPosition(int position) {
         mRecyclerView.smoothScrollToPosition(position);
     }
+
     /**
      * 列表滑到底部
      *
@@ -121,15 +143,32 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
         return totalCount - position <= reachBottomCount;
     }
 
-
+    /**
+     * 设置列表滑动到当前页还剩几个没显示的时候加载更多，
+     * 列如，reachBottomCount = 5，pageSize = 20;当滑动到当前页第16个的时候开始加载下一页数据
+     *
+     * @param reachBottomCount
+     */
     public void setReachBottomViewCount(int reachBottomCount) {
         this.reachBottomCount = reachBottomCount;
     }
 
+    /**
+     * 是否可以加载更多
+     *
+     * @param isCanLoadMore
+     */
     public void setIsCanLoadMore(boolean isCanLoadMore) {
-        this.isCanLoadMore = isCanLoadMore;
+        if (!isShowFooterView) {//如果已经添加footerView，加载更多功能将不能使用
+            this.isCanLoadMore = isCanLoadMore;
+        }
     }
 
+    /**
+     * 是否可以下拉刷新
+     *
+     * @param isCanRefresh
+     */
     public void setIsCanRefresh(boolean isCanRefresh) {
         this.isCanRefresh = isCanRefresh;
         if (isCanRefresh) {
@@ -158,7 +197,9 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
         manager.setUpAdapter(adapter);
     }
 
-
+    /**
+     * @param manager
+     */
     public void setLayoutManager(ILayoutManager manager) {
         this.manager = manager;
         mRecyclerView.setLayoutManager(manager.getLayoutManager());
@@ -168,14 +209,18 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
     public void onRefresh() {
         mCurrentState = ACTION_PULL_REFRESH;
         listener.onPullRefresh(ACTION_PULL_REFRESH);
-        setFooterTv("正在加载...",VISIBLE);
+        setLoadMoreTv("正在加载...", VISIBLE);
     }
 
     public void onComplete() {
         onComplete(LOAD_MORE_CONTIUE);
     }
 
-
+    /**
+     * 数据加载完成
+     *
+     * @param state
+     */
     public void onComplete(int state) {
         switch (mCurrentState) {
             case ACTION_PULL_REFRESH:
@@ -183,7 +228,7 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
                 break;
             case ACTION_MORE_ACTION:
                 if (state == LOAD_MORE_END) {
-                    setFooterTv("没有更多数据了",GONE);
+                    setLoadMoreTv("没有更多数据了", GONE);
                 } else if (state == LOAD_MORE_CONTIUE) {
                     adapter.showLoadMoreFooter(false);
                 }
@@ -195,29 +240,53 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
         mCurrentState = ACTION_IDEL;
     }
 
-
-    public void isShowLastView(boolean isShowLastView, View view) {
+    /**
+     * 添加footer View
+     *
+     * @param isShowFooterView
+     * @param view
+     */
+    public void addFooterView(boolean isShowFooterView, View view) {
+        this.isShowFooterView = isShowFooterView;
         if (adapter != null) {
-            adapter.isShowLastView(isShowLastView, view);
+            if (isShowFooterView) {
+                isCanLoadMore = false;//添加footerView与加载更多功能不能同时使用
+            }
+            adapter.addFooterView(isShowFooterView, view);
         } else {
             Logger.E("err", "adapter is null,please init adapter");
         }
-
     }
 
-    public void setFooterTv(String str, int look) {
+    /**
+     * 设置加载更多时的加载提示，ProgressBar是否显示
+     *
+     * @param str
+     * @param look VISIBLE,GONE
+     */
+    public void setLoadMoreTv(String str, int look) {
         if (adapter != null) {
-            adapter.setFooterTv(str,look);
+            adapter.setLoadMoreTv(str, look);
         }
     }
-    public void setFooterTv(String str) {
-        if (adapter != null) {
-            adapter.setFooterTv(str);
-        }
+
+    /**
+     * 设置加载更多时的加载提示，ProgressBar不显示
+     *
+     * @param str
+     */
+    public void setLoadMoreTv(String str) {
+        setLoadMoreTv(str, GONE);
     }
-    public void setOnClickLastViewListener(OnClickLastViewListener lastViewListener) {
+
+    /**
+     * 单击 footer view 监听
+     *
+     * @param footerViewListener
+     */
+    public void setOnClickFooterViewListener(OnClickFooterViewListener footerViewListener) {
         if (adapter != null) {
-            adapter.setOnClickLastViewListener(lastViewListener);
+            adapter.setOnClickFooterViewListener(footerViewListener);
         } else {
             Logger.E("err", "adapter is null,please init adapter");
         }

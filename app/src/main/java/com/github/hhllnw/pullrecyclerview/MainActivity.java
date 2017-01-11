@@ -1,62 +1,34 @@
 package com.github.hhllnw.pullrecyclerview;
 
+import android.content.Intent;
 import android.os.Handler;
 import android.os.Message;
-import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.github.hhllnw.pullrecyclerviewlibrary.BaseViewHolder;
-import com.github.hhllnw.pullrecyclerviewlibrary.BaselistAdapter;
-import com.github.hhllnw.pullrecyclerviewlibrary.ILinearLayoutManager;
-import com.github.hhllnw.pullrecyclerviewlibrary.PullRecycler;
 
-import java.util.ArrayList;
-import java.util.List;
+public class MainActivity extends BaseListActivity<MainActivity.ListItem> {
 
-public class MainActivity extends AppCompatActivity implements PullRecycler.OnRecyclerRefreshListener {
-
-    private PullRecycler mPullRecycler;
-    private List<String> data;
-    private ListAdapter listAdapter;
-    private int page = 1;
+    private Class<?>[] ACTIVITY = {CommonListActivity.class,FooterListActivty.class,SectionListActivity.class};
+    private String[] titles = {CommonListActivity.class.getSimpleName(),FooterListActivty.class.getSimpleName(), SectionListActivity.class.getSimpleName()};
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        mPullRecycler = (PullRecycler) findViewById(R.id.mPullRecycler);
+    protected void init() {
+    }
 
-        data = new ArrayList<>();
-        listAdapter = new ListAdapter();
-        mPullRecycler.setLayoutManager(new ILinearLayoutManager(this));
-        mPullRecycler.setOnRecyclerRefreshListener(this);
-        mPullRecycler.setAdapter(listAdapter);
-
-        mPullRecycler.setFirstRefresh();
-        mPullRecycler.setIsCanLoadMore(true);
-
+    @Override
+    protected BaseViewHolder getViewHolder(ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_list, parent, false);
+        return new ViewHolder(view);
     }
 
     @Override
     public void onPullRefresh(int action) {
-
-        if (action == PullRecycler.ACTION_PULL_REFRESH) {
-            data.clear();
-            page = 1;
-            getData();
-        } else {
-            page++;
-            if (page < 5) {
-                getData();
-            } else {
-                mPullRecycler.onComplete(PullRecycler.LOAD_MORE_END);
-            }
-        }
-
+        mDataList.clear();
+        getData();
     }
 
     private void getData() {
@@ -72,8 +44,11 @@ public class MainActivity extends AppCompatActivity implements PullRecycler.OnRe
                     e.printStackTrace();
                 }
 
-                for (int i = 0; i < 20; i++) {
-                    data.add("" + (data.size() + 1));
+                for (int i = 0; i < ACTIVITY.length; i++) {
+                    ListItem item = new ListItem();
+                    item.setaClass(ACTIVITY[i]);
+                    item.setTitle(titles[i]);
+                    mDataList.add(item);
                 }
 
                 myHander.sendEmptyMessage(1);
@@ -87,25 +62,11 @@ public class MainActivity extends AppCompatActivity implements PullRecycler.OnRe
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
-            listAdapter.notifyDataSetChanged();
+            baselistAdapter.notifyDataSetChanged();
             mPullRecycler.onComplete();
         }
     }
 
-
-    private class ListAdapter extends BaselistAdapter {
-
-        @Override
-        protected BaseViewHolder onCreateNormalViewHolder(ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_list, parent, false);
-            return new ViewHolder(view);
-        }
-
-        @Override
-        protected int getDataCount() {
-            return data == null ? 0 : data.size();
-        }
-    }
 
     private class ViewHolder extends BaseViewHolder {
         TextView textView;
@@ -117,9 +78,37 @@ public class MainActivity extends AppCompatActivity implements PullRecycler.OnRe
 
         @Override
         public void bind(int position) {
+            textView.setText(mDataList.get(position).getTitle());
+        }
 
-            textView.setText(data.get(position));
+        @Override
+        public void OnItemClick(View view, int position) {
+            super.OnItemClick(view, position);
+            startActivity(new Intent(MainActivity.this, mDataList.get(position).getaClass())
+                    .putExtra(Contants.INTENT_KEY_TITLE, mDataList.get(position).getTitle()));
+        }
+    }
 
+
+    public class ListItem {
+        private Class<?> aClass;
+        private String title;
+
+
+        public Class<?> getaClass() {
+            return aClass;
+        }
+
+        public void setaClass(Class<?> aClass) {
+            this.aClass = aClass;
+        }
+
+        public String getTitle() {
+            return title;
+        }
+
+        public void setTitle(String title) {
+            this.title = title;
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.github.hhllnw.pullrecyclerviewlibrary;
 
+import android.os.Handler;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.view.LayoutInflater;
@@ -9,22 +10,23 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 
-
 /**
  * Created by hhl on 2016/6/27.
  */
 public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolder> {
-    protected boolean isShowFooter = false;
-    protected boolean isShowInsertLastView = false;
     private static final int LOAD_MORE_SHOW_FOOTER = 100;
     private static final int INSERT_SHOW_LAST_VIEW = 101;
-    private View lastView;//recycler新添加的最后一个view
-    private PullRecycler.OnClickLastViewListener lastViewListener;
+    protected boolean isShowLoadMore = false;
+    protected boolean isShowInsertLastView = false;
+    private View footerView;//recycler新添加的最后一个view
+    private PullRecycler.OnClickFooterViewListener footerListener;
+    private TextView tv_loadMore;
+    private ProgressBar mLoadMoreProgressBar;
 
     @Override
     public BaseViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         if (viewType == LOAD_MORE_SHOW_FOOTER) {
-            return addFooterView(parent);
+            return addLoadMoreView(parent);
         } else if (viewType == INSERT_SHOW_LAST_VIEW) {
             return insertLastView();
         }
@@ -33,7 +35,7 @@ public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolde
 
     @Override
     public void onBindViewHolder(BaseViewHolder holder, int position) {
-        if (isShowFooter && (position == getItemCount() - 1)) {
+        if (isShowLoadMore && (position == getItemCount() - 1)) {
             if (holder.itemView.getLayoutParams() instanceof StaggeredGridLayoutManager.LayoutParams) {
                 StaggeredGridLayoutManager.LayoutParams params = (StaggeredGridLayoutManager.LayoutParams) holder.itemView.getLayoutParams();
                 params.setFullSpan(true);
@@ -44,13 +46,13 @@ public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolde
 
     @Override
     public int getItemCount() {
-        return getDataCount() + (isShowFooter ? 1 : 0) + (isShowInsertLastView ? 1 : 0);
+        return getDataCount() + (isShowLoadMore ? 1 : 0) + (isShowInsertLastView ? 1 : 0);
     }
 
 
     @Override
     public int getItemViewType(int position) {
-        if (isShowFooter && position == (getItemCount() - 1)) {
+        if (isShowLoadMore && position == (getItemCount() - 1)) {
             return LOAD_MORE_SHOW_FOOTER;
         } else if (isShowInsertLastView && position == (getItemCount() - 1)) {
             return INSERT_SHOW_LAST_VIEW;
@@ -62,65 +64,71 @@ public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolde
         return 0;
     }
 
-    public void showLoadMoreFooter(boolean isShow) {
-        isShowFooter = isShow;
-        if (isShow) {
-            notifyItemInserted(getItemCount());
-        } else {
-            notifyItemRemoved(getItemCount());
-        }
+    public void showLoadMoreFooter(final boolean isShow) {
+
+        Handler handler = new Handler();
+
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                isShowLoadMore = isShow;
+                if (isShow) {
+                    notifyItemInserted(getItemCount());
+                } else {
+                    notifyItemRemoved(getItemCount());
+                }
+            }
+        };
+
+        handler.post(runnable);
     }
 
-    public void isShowLastView(boolean isShow, View view) {
+    public void addFooterView(boolean isShow, View view) {
         isShowInsertLastView = isShow;
-        lastView = view;
+        footerView = view;
         if (isShowInsertLastView) {
             notifyItemInserted(getDataCount());
         }
     }
 
-    public void setOnClickLastViewListener(PullRecycler.OnClickLastViewListener lastViewListener) {
-        this.lastViewListener = lastViewListener;
+    public void setOnClickFooterViewListener(PullRecycler.OnClickFooterViewListener footerViewListener) {
+        this.footerListener = footerViewListener;
     }
 
 
-    public boolean isShowFooter(int position) {
-        if (isShowFooter && (position == getItemCount() - 1)) {
+    public boolean isShowLoadMoreView(int position) {
+        if (isShowLoadMore && (position == getItemCount() - 1)) {
             return true;
         }
         return false;
     }
 
-    protected BaseViewHolder addFooterView(ViewGroup parent) {
+    protected BaseViewHolder addLoadMoreView(ViewGroup parent) {
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_list_footer, parent, false);
-        tv_footer = (TextView) view.findViewById(R.id.tv_footer);
-        mFooterProgressBar = (ProgressBar) view.findViewById(R.id.footer_progressBar);
+        tv_loadMore = (TextView) view.findViewById(R.id.tv_footer);
+        mLoadMoreProgressBar = (ProgressBar) view.findViewById(R.id.footer_progressBar);
         return new createLoadMoreFooterViewHolder(view);
     }
 
-    private TextView tv_footer;
-    private ProgressBar mFooterProgressBar;
-
-    protected void setFooterTv(String str) {
-        if (tv_footer == null || mFooterProgressBar == null) return;
-        tv_footer.setText(str);
-        mFooterProgressBar.setVisibility(View.GONE);
-    }
-
-    protected void setFooterTv(String str, int look) {
-        if (tv_footer == null || mFooterProgressBar == null) return;
-        tv_footer.setText(str);
-        mFooterProgressBar.setVisibility(look);
+    /**
+     * 设置加载更多提示
+     *
+     * @param str
+     * @param look ProgressBar是否显示
+     */
+    protected void setLoadMoreTv(String str, int look) {
+        if (tv_loadMore == null || mLoadMoreProgressBar == null) return;
+        tv_loadMore.setText(str);
+        mLoadMoreProgressBar.setVisibility(look);
     }
 
     private BaseViewHolder insertLastView() {
-        if (lastView == null) {
+        if (footerView == null) {
             Logger.E("error", "in PullRecycler.isShowLastView(true,view),view not null ");
             return null;
         } else {
-            return new createLastViewHolder(lastView);
+            return new createLastViewHolder(footerView);
         }
-
     }
 
     /**
@@ -167,11 +175,9 @@ public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolde
 
         @Override
         public void OnItemClick(View view, int position) {
-            if (lastViewListener != null) {
-                lastViewListener.onClickLastView();
+            if (footerListener != null) {
+                footerListener.onClickFooterView();
             }
         }
     }
-
-
 }
