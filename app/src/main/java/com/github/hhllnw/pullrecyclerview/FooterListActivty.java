@@ -4,7 +4,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,6 +32,7 @@ public class FooterListActivty extends BaseListActivity<String> {
                 Toast.makeText(FooterListActivty.this, "I'm footer.", Toast.LENGTH_SHORT).show();
             }
         });
+
 
     }
 
@@ -64,7 +64,7 @@ public class FooterListActivty extends BaseListActivity<String> {
                     e.printStackTrace();
                 }
 
-                for (int i = 0; i < 30; i++) {
+                for (int i = 0; i < 20; i++) {
                     mDataList.add("" + i);
                 }
 

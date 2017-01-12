@@ -8,27 +8,40 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
  * Created by hhl on 2016/6/27.
  */
 public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolder> {
-    private static final int LOAD_MORE_SHOW_FOOTER = 100;
-    private static final int INSERT_SHOW_LAST_VIEW = 101;
+    private static final int SHOW_LOAD_MORE_VIEW = 1000;
+    private static final int INSERT_SHOW_LAST_VIEW = 1001;
     protected boolean isShowLoadMore = false;
-    protected boolean isShowInsertLastView = false;
+    protected boolean isShowFooterView = false;
     private View footerView;//recycler新添加的最后一个view
     private PullRecycler.OnClickFooterViewListener footerListener;
-    private TextView tv_loadMore;
-    private ProgressBar mLoadMoreProgressBar;
+    private List<View> loadMoreViews = new ArrayList<>();
+    private OnClickLoadMoreViewListener onClickLoadMoreViewListener;
+
+    public interface OnClickLoadMoreViewListener {
+        void onClickLoadMoreView();
+    }
+
+    public void setOnClickLoadMoreViewListener(OnClickLoadMoreViewListener onClickLoadMoreViewListener) {
+        this.onClickLoadMoreViewListener = onClickLoadMoreViewListener;
+    }
+
 
     @Override
     public BaseViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        if (viewType == LOAD_MORE_SHOW_FOOTER) {
-            return addLoadMoreView(parent);
+        if (viewType == SHOW_LOAD_MORE_VIEW) {
+            return getLoadMoreViewHolder();
         } else if (viewType == INSERT_SHOW_LAST_VIEW) {
-            return insertLastView();
+            return insertLastViewHolder();
         }
         return onCreateNormalViewHolder(parent, viewType);
     }
@@ -46,15 +59,15 @@ public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolde
 
     @Override
     public int getItemCount() {
-        return getDataCount() + (isShowLoadMore ? 1 : 0) + (isShowInsertLastView ? 1 : 0);
+        return getDataCount() + (isShowLoadMore ? 1 : 0) + (isShowFooterView ? 1 : 0);
     }
 
 
     @Override
     public int getItemViewType(int position) {
         if (isShowLoadMore && position == (getItemCount() - 1)) {
-            return LOAD_MORE_SHOW_FOOTER;
-        } else if (isShowInsertLastView && position == (getItemCount() - 1)) {
+            return SHOW_LOAD_MORE_VIEW;
+        } else if (isShowFooterView && position == (getItemCount() - 1)) {
             return INSERT_SHOW_LAST_VIEW;
         }
         return getDataType(position);
@@ -64,7 +77,7 @@ public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolde
         return 0;
     }
 
-    public void showLoadMoreFooter(final boolean isShow) {
+    public void showLoadMoreView(final boolean isShow) {
 
         Handler handler = new Handler();
 
@@ -79,14 +92,23 @@ public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolde
                 }
             }
         };
-
-        handler.post(runnable);
+        try {
+            handler.post(runnable);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
+    /**
+     * 添加尾部View
+     *
+     * @param isShow
+     * @param view
+     */
     public void addFooterView(boolean isShow, View view) {
-        isShowInsertLastView = isShow;
+        isShowFooterView = isShow;
         footerView = view;
-        if (isShowInsertLastView) {
+        if (isShowFooterView) {
             notifyItemInserted(getDataCount());
         }
     }
@@ -103,26 +125,38 @@ public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolde
         return false;
     }
 
-    protected BaseViewHolder addLoadMoreView(ViewGroup parent) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_list_footer, parent, false);
-        tv_loadMore = (TextView) view.findViewById(R.id.tv_footer);
-        mLoadMoreProgressBar = (ProgressBar) view.findViewById(R.id.footer_progressBar);
-        return new createLoadMoreFooterViewHolder(view);
-    }
-
     /**
-     * 设置加载更多提示
+     * 添加加载更多...
      *
-     * @param str
-     * @param look ProgressBar是否显示
+     * @param view
      */
-    protected void setLoadMoreTv(String str, int look) {
-        if (tv_loadMore == null || mLoadMoreProgressBar == null) return;
-        tv_loadMore.setText(str);
-        mLoadMoreProgressBar.setVisibility(look);
+    public void addLoadMoreView(View view) {
+        if (view == null) {
+            throw new RuntimeException("loadMoreView is null.");
+        }
+        removeLoadMoreView();
+        loadMoreViews.add(view);
     }
 
-    private BaseViewHolder insertLastView() {
+    public View getLoadMoreView() {
+        return getLoadMoreCounts() > 0 ? loadMoreViews.get(0) : null;
+    }
+
+    private void removeLoadMoreView() {
+        if (getLoadMoreCounts() > 0) {
+            loadMoreViews.remove(0);
+        }
+    }
+
+    private int getLoadMoreCounts() {
+        return loadMoreViews.size();
+    }
+
+    private BaseViewHolder getLoadMoreViewHolder() {
+        return new createLoadMoreViewHolder(getLoadMoreView());
+    }
+
+    private BaseViewHolder insertLastViewHolder() {
         if (footerView == null) {
             Logger.E("error", "in PullRecycler.isShowLastView(true,view),view not null ");
             return null;
@@ -151,14 +185,22 @@ public abstract class BaselistAdapter extends RecyclerView.Adapter<BaseViewHolde
         return false;
     }
 
-    protected class createLoadMoreFooterViewHolder extends BaseViewHolder {
-        public createLoadMoreFooterViewHolder(View view) {
+    private class createLoadMoreViewHolder extends BaseViewHolder {
+        public createLoadMoreViewHolder(View view) {
             super(view);
         }
 
         @Override
         public void bind(int position) {
 
+        }
+
+        @Override
+        public void OnItemClick(View view, int position) {
+            super.OnItemClick(view, position);
+            if (onClickLoadMoreViewListener != null) {
+                onClickLoadMoreViewListener.onClickLoadMoreView();
+            }
         }
     }
 

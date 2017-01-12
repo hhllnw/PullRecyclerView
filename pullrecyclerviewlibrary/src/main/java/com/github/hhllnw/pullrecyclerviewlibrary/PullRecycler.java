@@ -1,13 +1,24 @@
 package com.github.hhllnw.pullrecyclerviewlibrary;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 
 /**
  * Created by hhl on 2016/6/4.
@@ -29,6 +40,16 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
     private OnRecyclerRefreshListener listener;
     private ILayoutManager manager;
     private BaselistAdapter adapter;
+    private TextView tv_loadMore;
+    private ProgressBar mLoadMoreProgressBar;
+    private final int DEFAULT_LOADMORE_STYLE = 1000;//默认加载更多UI
+    private final int CUSTOMER_LOADMORE_STYLE = 1001;//自定义加载更多UI
+    private int LOADMORE_STYLE = 1000;
+
+    public enum LoadMoreModle {scroll, click}
+
+    private LoadMoreModle loadMoreModle = LoadMoreModle.scroll;
+    private volatile int DATA_STATUE;
 
     /**
      * 加载更多时，默认当倒数五个数出现时加载更多
@@ -38,7 +59,6 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
     public void addItemDecoration(RecyclerView.ItemDecoration divider) {
         mRecyclerView.addItemDecoration(divider);
     }
-
 
     /**
      * 刷新、加载回调
@@ -85,11 +105,22 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
             @Override
             public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
                 super.onScrolled(recyclerView, dx, dy);
+
                 if (mCurrentState == ACTION_IDEL && isCanLoadMore && reachBottom() && dy > 0) {
-                    mCurrentState = ACTION_MORE_ACTION;
-                    mSwipeRefreshLayout.setEnabled(false);
-                    listener.onPullRefresh(ACTION_MORE_ACTION);
-                    adapter.showLoadMoreFooter(true);
+                    if (loadMoreModle == LoadMoreModle.scroll) {
+                        mCurrentState = ACTION_MORE_ACTION;
+                        mSwipeRefreshLayout.setEnabled(false);
+                        listener.onPullRefresh(ACTION_MORE_ACTION);
+                        adapter.showLoadMoreView(true);
+                    } else if (loadMoreModle == LoadMoreModle.click) {
+                        if (DATA_STATUE == LOAD_MORE_CONTIUE) {
+                            adapter.showLoadMoreView(true);
+                            setLoadMoreTv("加载更多", GONE);
+                            setOnClickLoadMoreListener();
+                        } else if (DATA_STATUE == LOAD_MORE_END) {
+                            onComplete(LOAD_MORE_END);
+                        }
+                    }
                 }
             }
         });
@@ -104,6 +135,7 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
                 }
             }
         });
+
     }
 
     /**
@@ -115,7 +147,13 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
         mSwipeRefreshLayout.setColorSchemeResources(array);
     }
 
+    public void setLoadMOreModle(LoadMoreModle modle) {
+        loadMoreModle = modle;
+    }
+
     /**
+     * 定位到某个item位置
+     *
      * @param position
      */
     public void scrollToPosition(int position) {
@@ -161,6 +199,9 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
     public void setIsCanLoadMore(boolean isCanLoadMore) {
         if (!isShowFooterView) {//如果已经添加footerView，加载更多功能将不能使用
             this.isCanLoadMore = isCanLoadMore;
+            if (isCanLoadMore) {
+                setLoadMoreViewStyle(null);
+            }
         }
     }
 
@@ -198,6 +239,23 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
     }
 
     /**
+     * @param view 设置加载更多风格
+     */
+    public void setLoadMoreViewStyle(View view) {
+        if (adapter == null) {
+            throw new RuntimeException("adapter is null.");
+        }
+        if (view == null) {
+            view = LayoutInflater.from(getContext()).inflate(R.layout.item_list_footer, this, false);
+            tv_loadMore = (TextView) view.findViewById(R.id.tv_footer);
+            mLoadMoreProgressBar = (ProgressBar) view.findViewById(R.id.footer_progressBar);
+        } else {
+            LOADMORE_STYLE = CUSTOMER_LOADMORE_STYLE;
+        }
+        adapter.addLoadMoreView(view);
+    }
+
+    /**
      * @param manager
      */
     public void setLayoutManager(ILayoutManager manager) {
@@ -209,7 +267,10 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
     public void onRefresh() {
         mCurrentState = ACTION_PULL_REFRESH;
         listener.onPullRefresh(ACTION_PULL_REFRESH);
-        setLoadMoreTv("正在加载...", VISIBLE);
+        if (isDefaultLoadMoreStyle()) {
+            setLoadMoreTv("正在加载...", VISIBLE);
+        }
+
     }
 
     public void onComplete() {
@@ -222,15 +283,18 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
      * @param state
      */
     public void onComplete(int state) {
+        DATA_STATUE = state;
         switch (mCurrentState) {
             case ACTION_PULL_REFRESH:
                 mSwipeRefreshLayout.setRefreshing(false);
                 break;
             case ACTION_MORE_ACTION:
                 if (state == LOAD_MORE_END) {
-                    setLoadMoreTv("没有更多数据了", GONE);
+                    if (isDefaultLoadMoreStyle()) {
+                        setLoadMoreTv("没有更多数据了", GONE);
+                    }
                 } else if (state == LOAD_MORE_CONTIUE) {
-                    adapter.showLoadMoreFooter(false);
+                    adapter.showLoadMoreView(false);
                 }
                 if (isCanRefresh) {
                     mSwipeRefreshLayout.setEnabled(true);
@@ -259,24 +323,28 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
     }
 
     /**
-     * 设置加载更多时的加载提示，ProgressBar是否显示
+     * 设置加载更多时的加载提示，ProgressBar不显示
      *
      * @param str
-     * @param look VISIBLE,GONE
+     * @param visible VISIBLE,GONE
      */
-    public void setLoadMoreTv(String str, int look) {
-        if (adapter != null) {
-            adapter.setLoadMoreTv(str, look);
+    public void setLoadMoreTv(String str, int visible) {
+        if (tv_loadMore != null && mLoadMoreProgressBar != null) {
+            tv_loadMore.setText(str);
+            mLoadMoreProgressBar.setVisibility(visible);
         }
     }
 
     /**
-     * 设置加载更多时的加载提示，ProgressBar不显示
+     * 加载更多是否默认模式
      *
-     * @param str
+     * @return
      */
-    public void setLoadMoreTv(String str) {
-        setLoadMoreTv(str, GONE);
+    private boolean isDefaultLoadMoreStyle() {
+        if (LOADMORE_STYLE == DEFAULT_LOADMORE_STYLE) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -292,4 +360,17 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
         }
     }
 
+    private void setOnClickLoadMoreListener() {
+        if (adapter != null) {
+            adapter.setOnClickLoadMoreViewListener(new BaselistAdapter.OnClickLoadMoreViewListener() {
+                @Override
+                public void onClickLoadMoreView() {
+                    mCurrentState = ACTION_MORE_ACTION;
+                    mSwipeRefreshLayout.setEnabled(false);
+                    setLoadMoreTv("正在加载...", VISIBLE);
+                    listener.onPullRefresh(ACTION_MORE_ACTION);
+                }
+            });
+        }
+    }
 }

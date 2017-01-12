@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.hhllnw.pullrecyclerviewlibrary.BaseViewHolder;
 import com.github.hhllnw.pullrecyclerviewlibrary.PullRecycler;
@@ -21,6 +22,7 @@ public class CommonListActivity extends BaseListActivity<String> {
     @Override
     protected void init() {
         mPullRecycler.setIsCanLoadMore(true);
+        mPullRecycler.setLoadMOreModle(PullRecycler.LoadMoreModle.click);
     }
 
     @Override
