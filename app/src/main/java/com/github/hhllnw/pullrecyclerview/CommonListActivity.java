@@ -22,7 +22,7 @@ public class CommonListActivity extends BaseListActivity<String> {
     @Override
     protected void init() {
         mPullRecycler.setIsCanLoadMore(true);
-        mPullRecycler.setLoadMOreModle(PullRecycler.LoadMoreModle.click);
+        mPullRecycler.setLoadMoreModle(PullRecycler.LoadMoreModle.click);
     }
 
     @Override

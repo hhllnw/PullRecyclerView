@@ -10,8 +10,10 @@ import android.widget.TextView;
 import com.github.hhllnw.pullrecyclerviewlibrary.BaseViewHolder;
 import com.github.hhllnw.pullrecyclerviewlibrary.BaselistAdapter;
 import com.github.hhllnw.pullrecyclerviewlibrary.DividerDecoration;
+import com.github.hhllnw.pullrecyclerviewlibrary.IGridLayoutManager;
 import com.github.hhllnw.pullrecyclerviewlibrary.ILayoutManager;
 import com.github.hhllnw.pullrecyclerviewlibrary.ILinearLayoutManager;
+import com.github.hhllnw.pullrecyclerviewlibrary.IStaggeredGridLayoutManager;
 import com.github.hhllnw.pullrecyclerviewlibrary.PullRecycler;
 
 import java.util.ArrayList;

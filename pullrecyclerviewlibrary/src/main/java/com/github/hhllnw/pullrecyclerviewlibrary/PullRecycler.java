@@ -147,7 +147,7 @@ public class PullRecycler extends FrameLayout implements SwipeRefreshLayout.OnRe
         mSwipeRefreshLayout.setColorSchemeResources(array);
     }
 
-    public void setLoadMOreModle(LoadMoreModle modle) {
+    public void setLoadMoreModle(LoadMoreModle modle) {
         loadMoreModle = modle;
     }
 
