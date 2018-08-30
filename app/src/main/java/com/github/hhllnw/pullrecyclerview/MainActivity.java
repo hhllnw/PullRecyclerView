@@ -17,6 +17,7 @@ public class MainActivity extends BaseListActivity<MainActivity.ListItem> {
 
     @Override
     protected void init() {
+
     }
 
     @Override
@@ -93,7 +94,6 @@ public class MainActivity extends BaseListActivity<MainActivity.ListItem> {
     public class ListItem {
         private Class<?> aClass;
         private String title;
-
 
         public Class<?> getaClass() {
             return aClass;
